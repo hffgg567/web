@@ -195,5 +195,5 @@ personal-website/
 - **字体**: Noto Sans SC / Noto Sans TC
 
 ## 📄 License
-###本项目由ai生成
 MIT
+##本项目由ai生成
