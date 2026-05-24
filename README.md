@@ -1,6 +1,6 @@
 # 个人网站 — Cloudflare Worker
 
-[![Deploy to Cloudflare Pages](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YOUR_USERNAME/personal-website)
+> 上传到 GitHub → Cloudflare 网页点几下 → 网站上线，全程不碰终端
 
 ## ✨ 功能
 
@@ -195,6 +195,5 @@ personal-website/
 - **字体**: Noto Sans SC / Noto Sans TC
 
 ## 📄 License
+
 MIT
-
-
