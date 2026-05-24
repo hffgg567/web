@@ -1,0 +1,36 @@
+name = "personal-website"
+main = "src/worker.js"
+compatibility_date = "2024-01-01"
+
+# ============================================================
+# KV 命名空间绑定
+# 
+# 在 Cloudflare Dashboard 网页上配置：
+# Workers & Pages → 你的 Worker → Settings → Variables and Secrets → KV Namespace Bindings
+# 
+# 也可以在这里填写已创建的 KV 命名空间 ID（二选一）
+# ============================================================
+
+[[kv_namespaces]]
+binding = "ARTICLES_KV"
+id = "YOUR_ARTICLES_KV_ID"
+preview_id = "YOUR_ARTICLES_KV_PREVIEW_ID"
+
+[[kv_namespaces]]
+binding = "COMMENTS_KV"
+id = "YOUR_COMMENTS_KV_ID"
+preview_id = "YOUR_COMMENTS_KV_PREVIEW_ID"
+
+[[kv_namespaces]]
+binding = "SESSIONS_KV"
+id = "YOUR_SESSIONS_KV_ID"
+preview_id = "YOUR_SESSIONS_KV_PREVIEW_ID"
+
+# ============================================================
+# 环境变量（非敏感信息）
+# 敏感信息在 Dashboard 的 Settings → Variables and Secrets 中添加
+# ============================================================
+
+[vars]
+ADMIN_USERNAME = "admin"
+SITE_NAME = "我的博客"
