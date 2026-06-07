@@ -13,6 +13,7 @@ import {
   renderAdminLogin,
   renderAdminDashboard,
   renderAdminEditor,
+  renderAdminComments,
   renderErrorPage,
 } from './templates/pages.js';
 import { verifyAdmin } from './middleware/auth.js';
@@ -42,7 +43,7 @@ export default {
       }
 
       // ==================== 管理后台 ====================
-      if (pathname.startsWith('/admin/')) {
+      if (pathname.startsWith('/admin/') || pathname === '/admin') {
         return await handleAdminRequest(request, env, pathname);
       }
 
