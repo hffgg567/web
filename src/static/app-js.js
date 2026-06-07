@@ -330,9 +330,14 @@ export const APP_JS = `
   };
 
   /* ----------------------------------------------------------
-     删除评论
+     删除评论 (事件委托)
      ---------------------------------------------------------- */
-  window.deleteComment = function (articleId, commentId) {
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.comment-delete-btn');
+    if (!btn) return;
+    e.preventDefault();
+    var commentId = btn.getAttribute('data-delete-comment');
+    var articleId = btn.getAttribute('data-delete-article');
     if (!confirm('确认删除此评论？')) return;
     fetch('/api/admin/comments/' + articleId + '/' + commentId, {
       method: 'DELETE',
@@ -350,7 +355,7 @@ export const APP_JS = `
       .catch(function () {
         showToast('网络错误', 'error');
       });
-  };
+  });
 
   /* ----------------------------------------------------------
      GitHub OAuth for Comments
