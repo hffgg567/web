@@ -1292,4 +1292,20 @@ img {
     padding-top: 0;
   }
 }
+}
+
+/* ===== Code Syntax Highlighting ===== */
+pre { position: relative; overflow-x: auto; }
+pre[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute; top: 0; right: 0;
+  padding: 3px 12px; font-size: 0.7rem;
+  color: var(--text-tertiary); background: var(--bg-tertiary);
+  border-radius: 0 6px 0 8px; text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-left: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+:not(pre) > code { background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+
 `;
