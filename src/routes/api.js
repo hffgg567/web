@@ -86,6 +86,15 @@ export async function handleApiRequest(request, env, ctx) {
       return await handleGetComments(env, articleId, headers);
     }
 
+    // ==================== 管理员：删除评论 ====================
+
+    if (method === 'DELETE' && matchRoute(pathname, '/api/admin/comments/:articleId/:commentId')) {
+      const parts = pathname.replace('/api/admin/comments/', '').split('/');
+      const articleId = parts[0];
+      const commentId = parts[1];
+      return await handleDeleteComment(request, env, articleId, commentId, headers);
+    }
+
     // ==================== GitHub OAuth ====================
 
     // GitHub OAuth 回调
@@ -373,6 +382,26 @@ async function handleGetComments(env, articleId, headers) {
     return jsonResponse(comments, 200, headers);
   } catch (e) {
     return jsonResponse([], 200, headers);
+  }
+}
+
+/**
+ * 管理员删除评论
+ */
+async function handleDeleteComment(request, env, articleId, commentId, headers) {
+  try {
+    const isAdmin = await verifyAdmin(request, env);
+    if (!isAdmin) {
+      return jsonResponse({ error: '未授权' }, 401, headers);
+    }
+
+    const comments = await env.COMMENTS_KV.get(`comments:${articleId}`, { type: 'json' }) || [];
+    const filtered = comments.filter(c => c.id !== commentId);
+    await env.COMMENTS_KV.put(`comments:${articleId}`, JSON.stringify(filtered));
+    return jsonResponse({ success: true }, 200, headers);
+  } catch (e) {
+    console.error('Delete comment error:', e);
+    return jsonResponse({ error: '删除评论失败' }, 500, headers);
   }
 }
 
