@@ -137,6 +137,38 @@ function getNavActive(currentPage, targetPage) {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Pagination Helper
+// ---------------------------------------------------------------------------
+
+function renderPagination(locale, prefix, page, totalPages, searchQuery = '') {
+  if (totalPages <= 1) return '';
+  let html = '<nav class="pagination" style="display:flex;justify-content:center;align-items:center;gap:6px;margin-top:32px;flex-wrap:wrap;">';
+  const qs = searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '';
+  
+  html += page > 1
+    ? '<a href="' + prefix + '/articles?page=' + (page - 1) + qs + '" class="pagination__link" style="padding:8px 14px;border:1px solid var(--border-color);border-radius:6px;text-decoration:none;color:var(--text-primary);background:var(--bg-secondary);">' + (locale === 'zh-TW' ? '‹ 上一頁' : '‹ 上一页') + '</a>'
+    : '<span class="pagination__link" style="padding:8px 14px;border:1px solid var(--border-color);border-radius:6px;color:var(--text-disabled);background:var(--bg-secondary);opacity:0.5;">' + (locale === 'zh-TW' ? '‹ 上一頁' : '‹ 上一页') + '</span>';
+  
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === page) {
+      html += '<span class="pagination__link pagination__active" style="padding:8px 14px;border:1px solid var(--accent-primary);border-radius:6px;background:var(--accent-primary);color:#fff;font-weight:700;">' + i + '</span>';
+    } else if (i === 1 || i === totalPages || Math.abs(i - page) <= 2) {
+      html += '<a href="' + prefix + '/articles?page=' + i + qs + '" class="pagination__link" style="padding:8px 14px;border:1px solid var(--border-color);border-radius:6px;text-decoration:none;color:var(--text-primary);background:var(--bg-secondary);">' + i + '</a>';
+    } else if (Math.abs(i - page) === 3) {
+      html += '<span style="padding:8px 6px;color:var(--text-tertiary);">...</span>';
+    }
+  }
+  
+  html += page < totalPages
+    ? '<a href="' + prefix + '/articles?page=' + (page + 1) + qs + '" class="pagination__link" style="padding:8px 14px;border:1px solid var(--border-color);border-radius:6px;text-decoration:none;color:var(--text-primary);background:var(--bg-secondary);">' + (locale === 'zh-TW' ? '下一頁 ›' : '下一页 ›') + '</a>'
+    : '<span class="pagination__link" style="padding:8px 14px;border:1px solid var(--border-color);border-radius:6px;color:var(--text-disabled);background:var(--bg-secondary);opacity:0.5;">' + (locale === 'zh-TW' ? '下一頁 ›' : '下一页 ›') + '</span>';
+  
+  html += '</nav>';
+  return html;
+}
+
+// -
 // Simple Markdown to HTML
 // ---------------------------------------------------------------------------
 
@@ -144,7 +176,7 @@ function markdownToHtml(text) {
   if (!text) return '';
   let html = escapeHtml(text);
   // Code blocks
-  html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => { const langAttr = lang ? ' data-lang="' + lang + '"' : ''; return '<pre' + langAttr + '><code>' + code.trim() + '</code></pre>'; });
   // Inline code
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
   // Headers
@@ -186,15 +218,35 @@ function escapeHtml(text) {
 function fillBaseTemplate(params) {
   const siteName = params.siteName || tt(params.locale, 'siteName');
   const prefix = getPrefix(params.locale);
+  const canonicalUrl = params.canonicalUrl || '';
+  const ogImage = params.ogImage || '';
 
   return `<!DOCTYPE html>
 <html lang="${params.locale}" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="${params.description || ''}">
+  <meta name="description" content="${escapeHtml(params.description || '')}">
+  <meta name="keywords" content="${escapeHtml(params.keywords || '')}">
   <meta name="theme-color" content="#228be6">
-  <title>${params.title || siteName} - ${siteName}</title>
+  <meta name="color-scheme" content="light dark">
+  <title>${escapeHtml(params.title || siteName)} - ${escapeHtml(siteName)}</title>
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="${params.ogType || 'website'}">
+  <meta property="og:title" content="${escapeHtml(params.ogTitle || params.title || siteName)}">
+  <meta property="og:description" content="${escapeHtml(params.description || '')}">
+  <meta property="og:site_name" content="${escapeHtml(siteName)}">
+  ${canonicalUrl ? `<meta property="og:url" content="${escapeHtml(canonicalUrl)}">` : ''}
+  ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}">` : ''}
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${escapeHtml(params.ogTitle || params.title || siteName)}">
+  <meta name="twitter:description" content="${escapeHtml(params.description || '')}">
+  ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}">` : ''}
+  <!-- Canonical -->
+  ${canonicalUrl ? `<link rel="canonical" href="${escapeHtml(canonicalUrl)}">` : ''}
+  <!-- RSS -->
+  <link rel="alternate" type="application/rss+xml" title="${escapeHtml(siteName)} RSS Feed" href="${prefix}/rss.xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -303,6 +355,10 @@ export function renderHome(locale, env, articles) {
       <h2 style="font-size:1.3rem;font-weight:700;margin-top:20px;">${tt(locale, 'recentArticles')}</h2>
       <div class="articles-grid">
         ${articlesHtml}
+      </div>
+      ${renderPagination(locale, prefix, page, totalPages)}
+      <div style="text-align:center;margin-top:16px;">
+        <a href="${prefix}/articles" style="color:var(--accent-primary);font-weight:600;">${locale === 'zh-TW' ? '查看全部文章 →' : '查看全部文章 →'}</a>
       </div>
     </section>`;
 
@@ -414,10 +470,19 @@ export function renderArticleList(locale, env, articles) {
 
   const content = `
     <section class="container" style="padding-top:32px;">
-      <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:24px;">${tt(locale, 'navArticles')}</h1>
+      <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:16px;">${tt(locale, 'navArticles')}</h1>
+      <form class="search-bar" action="${prefix}/articles" method="GET" style="margin-bottom:24px;display:flex;gap:8px;max-width:500px;">
+        <input type="text" name="q" value="${escapeHtml(searchQuery)}" placeholder="${locale === 'zh-TW' ? '搜尋文章...' : '搜索文章...'}" 
+               style="flex:1;padding:10px 16px;border:2px solid var(--border-color);border-radius:8px;font-size:1rem;background:var(--bg-secondary);color:var(--text-primary);outline:none;">
+        <button type="submit" style="padding:10px 20px;background:var(--accent-primary);color:#fff;border:none;border-radius:8px;font-size:1rem;cursor:pointer;font-weight:600;">
+          ${locale === 'zh-TW' ? '搜尋' : '搜索'}
+        </button>
+      </form>
+      ${searchQuery ? `<p style="margin-bottom:16px;color:var(--text-tertiary);">${locale === 'zh-TW' ? '搜尋' : '搜索'}「${escapeHtml(searchQuery)}」${locale === 'zh-TW' ? '的結果' : '的结果'}</p>` : ''}
       <div class="articles-grid">
         ${articlesHtml}
       </div>
+      ${renderPagination(locale, prefix, page, totalPages, searchQuery)}
     </section>`;
 
   return fillBaseTemplate({
@@ -537,6 +602,7 @@ export function renderAdminDashboard(env, articles, stats) {
             <div class="admin-table__actions">
               <a href="/admin/editor?id=${article.id}" class="btn btn--sm">编辑</a>
               <button onclick="togglePublish('${article.id}', ${article.published})" class="btn btn--sm">${article.published ? '取消发布' : '发布'}</button>
+              <a href="/admin/comments?articleId=${article.id}" class="btn btn--sm">评论</a>
               <button onclick="deleteArticle('${article.id}')" class="btn btn--sm btn--danger">删除</button>
             </div>
           </td>
@@ -685,4 +751,111 @@ export function renderAdminEditor(env, article) {
 </html>`;
 
   return html;
+}
+
+// ---------------------------------------------------------------------------
+// 评论管理页面
+// ---------------------------------------------------------------------------
+
+export function renderAdminComments(env, article, comments) {
+  const siteName = env.SITE_NAME || '我的博客';
+  
+  let commentsHtml = '';
+  if (!article) {
+    commentsHtml = '<p style="text-align:center;color:var(--text-tertiary);padding:40px;">请从文章管理页面点击「评论」按钮进入</p>';
+  } else if (!comments || comments.length === 0) {
+    commentsHtml = '<p style="text-align:center;color:var(--text-tertiary);padding:40px;">该文章暂无评论</p>';
+  } else {
+    commentsHtml = comments.map(c => {
+      const d = c.createdAt ? new Date(c.createdAt).toLocaleDateString('zh-CN') : '';
+      return '<li class="comment-item" style="list-style:none;padding:12px 0;border-bottom:1px solid var(--border-color);">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;">'
+        + '<div style="display:flex;align-items:center;gap:10px;">'
+        + '<img src="' + (c.avatarUrl || 'https://github.githubassets.com/images/gravatars/gravatar-user-420.png') + '" alt="" style="width:32px;height:32px;border-radius:50%;">'
+        + '<div><strong style="color:var(--text-primary);">' + escapeHtml(c.username) + '</strong>'
+        + '<span style="display:block;font-size:0.8rem;color:var(--text-tertiary);">' + d + '</span></div>'
+        + '</div>'
+        + '<button onclick="deleteComment('' + c.articleId + '','' + c.id + '')" class="btn btn--sm btn--danger">删除</button>'
+        + '</div>'
+        + '<p style="margin:8px 0 0 42px;color:var(--text-secondary);">' + escapeHtml(c.content) + '</p>'
+        + '</li>';
+    }).join('');
+    commentsHtml = '<ul style="padding:0;margin:0;">' + commentsHtml + '</ul>';
+  }
+
+  const title = article ? '评论管理：' + escapeHtml(article.title) : '评论管理';
+
+  return '<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>' + title + ' - ' + siteName + '</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>' + CSS + '</style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar__inner">
+      <a href="/admin/" class="navbar__logo">' + siteName + ' - 管理后台</a>
+      <div class="navbar__actions">
+        <button class="theme-toggle" onclick="toggleTheme()"><span class="icon-sun">☀️</span><span class="icon-moon">🌙</span></button>
+      </div>
+    </div>
+  </nav>
+  <div style="max-width:800px;margin:80px auto 0;padding:20px;">
+    <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:20px;">' + title + '</h1>
+    <a href="/admin/" style="display:inline-block;margin-bottom:20px;color:var(--accent-primary);">← 返回文章管理</a>
+    ' + commentsHtml + '
+  </div>
+  <script>' + APP_JS + '</script>
+</body>
+</html>';
+}
+
+// ----------
+// ---------------------------------------------------------------------------
+// 错误页面
+// ---------------------------------------------------------------------------
+
+export function renderErrorPage(locale, env, status, message) {
+  const siteName = env.SITE_NAME || '我的博客';
+  const prefix = locale === 'zh-TW' ? '/tw' : '/cn';
+  const statusText = { 404: '404', 500: '500' }[status] || String(status);
+  const emojis = { 404: '🔍', 500: '🔥' };
+  const emoji = emojis[status] || '❓';
+  const tip404 = locale === 'zh-TW' ? '找不到你要的頁面' : '找不到你要的页面';
+  const tip500 = locale === 'zh-TW' ? '伺服器發生錯誤' : '服务器发生错误';
+  const tipBack = locale === 'zh-TW' ? '返回首頁' : '返回首页';
+  const tipDefault = locale === 'zh-TW' ? '出了點問題' : '出了点问题';
+  const tips = { 404: tip404, 500: tip500 };
+  const tip = tips[status] || tipDefault;
+
+  return `<!DOCTYPE html>
+<html lang="${locale}" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#228be6">
+  <meta name="color-scheme" content="light dark">
+  <title>${statusText} - ${siteName}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>${CSS}</style>
+</head>
+<body>
+  <main style="display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:20px;">
+    <div>
+      <div style="font-size:6rem;margin-bottom:8px;">${emoji}</div>
+      <h1 style="font-size:3rem;font-weight:800;color:var(--text-primary);margin:0 0 8px 0;">${statusText}</h1>
+      <p style="font-size:1.1rem;color:var(--text-tertiary);margin:0 0 24px 0;">${message || tip}</p>
+      <a href="${prefix}/" style="display:inline-block;background:var(--accent-primary);color:#fff;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:600;">${tipBack}</a>
+    </div>
+  </main>
+  <script>${APP_JS}</script>
+</body>
+</html>`;
 }
