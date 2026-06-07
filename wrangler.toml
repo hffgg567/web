@@ -13,18 +13,15 @@ compatibility_date = "2024-01-01"
 
 [[kv_namespaces]]
 binding = "ARTICLES_KV"
-id = "YOUR_ARTICLES_KV_ID"
-preview_id = "YOUR_ARTICLES_KV_PREVIEW_ID"
+id = "f825309fe47b41ba8276d803fec66776"
 
 [[kv_namespaces]]
 binding = "COMMENTS_KV"
-id = "YOUR_COMMENTS_KV_ID"
-preview_id = "YOUR_COMMENTS_KV_PREVIEW_ID"
+id = "c212ab61e4c24a2aa045a3cc99dbd60d"
 
 [[kv_namespaces]]
 binding = "SESSIONS_KV"
-id = "YOUR_SESSIONS_KV_ID"
-preview_id = "YOUR_SESSIONS_KV_PREVIEW_ID"
+id = "6dcb9a81d080448dbe0831f2a14fc477"
 
 # ============================================================
 # 环境变量（非敏感信息）
