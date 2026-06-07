@@ -330,6 +330,29 @@ export const APP_JS = `
   };
 
   /* ----------------------------------------------------------
+     删除评论
+     ---------------------------------------------------------- */
+  window.deleteComment = function (articleId, commentId) {
+    if (!confirm('确认删除此评论？')) return;
+    fetch('/api/admin/comments/' + articleId + '/' + commentId, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.success) {
+          showToast('评论已删除', 'success');
+          setTimeout(function () { window.location.reload(); }, 500);
+        } else {
+          showToast(data.error || '删除失败', 'error');
+        }
+      })
+      .catch(function () {
+        showToast('网络错误', 'error');
+      });
+  };
+
+  /* ----------------------------------------------------------
      GitHub OAuth for Comments
      ---------------------------------------------------------- */
   var githubLoginBtn = document.getElementById('githubLoginBtn');
