@@ -13,6 +13,7 @@ import {
   renderAdminLogin,
   renderAdminDashboard,
   renderAdminEditor,
+  renderErrorPage,
 } from './templates/pages.js';
 import { verifyAdmin } from './middleware/auth.js';
 
@@ -36,7 +37,7 @@ export default {
       }
 
       // ==================== GitHub OAuth 发起 ====================
-      if (pathname === '/auth/github') {
+      if (pathname === '/auth/github' || pathname === '/api/auth/github') {
         return handleGithubAuthRedirect(request, env);
       }
 
@@ -61,10 +62,10 @@ export default {
       }
 
       // 其他未匹配路由 → 404
-      return new Response('Not Found', { status: 404 });
+      return html(renderErrorPage('zh-CN', env, 404, ''), 404);
     } catch (err) {
       console.error('Worker error:', err);
-      return new Response('Internal Server Error', { status: 500 });
+      return html(renderErrorPage('zh-CN', env, 500, err.message), 500);
     }
   },
 };
@@ -74,20 +75,44 @@ export default {
 // ===========================================================================
 
 async function handlePageRequest(request, env, locale, subPath) {
+  const url = new URL(request.url);
   const path = subPath.replace(/^\//, '') || '';
+  const PAGE_SIZE = 9;
 
   if (path === '' || path === '/') {
+    const page = Math.max(1, parseInt(url.searchParams.get('page')) || 1);
     const articles = await getPublishedArticles(env, locale);
-    return html(renderHome(locale, env, articles));
+    const totalPages = Math.ceil(articles.length / PAGE_SIZE);
+    const paged = articles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    return html(renderHome(locale, env, paged, page, totalPages));
   }
 
   if (path === 'articles' || path === 'articles/') {
-    const articles = await getPublishedArticles(env, locale);
-    return html(renderArticleList(locale, env, articles));
+    const page = Math.max(1, parseInt(url.searchParams.get('page')) || 1);
+    const q = (url.searchParams.get('q') || '').trim();
+    let articles = await getPublishedArticles(env, locale);
+    if (q) {
+      const kw = q.toLowerCase();
+      articles = articles.filter(a => {
+        const t = (a.title || '').toLowerCase();
+        const c = (a.content || '').toLowerCase();
+        const g = (a.tags || []).join(' ').toLowerCase();
+        const s = (a.summary || '').toLowerCase();
+        return t.includes(kw) || c.includes(kw) || g.includes(kw) || s.includes(kw);
+      });
+    }
+    const totalPages = Math.ceil(articles.length / PAGE_SIZE);
+    const paged = articles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    return html(renderArticleList(locale, env, paged, page, totalPages, q));
   }
 
   if (path === 'about' || path === 'about/') {
     return html(renderAbout(locale, env));
+  }
+
+  // RSS feed
+  if (path === 'rss.xml') {
+    return await handleRssFeed(request, env, locale);
   }
 
   const articleMatch = path.match(/^articles\/(.+)$/);
@@ -95,13 +120,13 @@ async function handlePageRequest(request, env, locale, subPath) {
     const articleId = articleMatch[1];
     const article = await getArticle(env, articleId);
     if (!article) {
-      return new Response('Not Found', { status: 404 });
+      return html(renderErrorPage(locale, env, 404, ''), 404);
     }
     const comments = await getComments(env, articleId);
     return html(renderArticle(locale, env, article, comments));
   }
 
-  return new Response('Not Found', { status: 404 });
+  return html(renderErrorPage(locale, env, 404, ''), 404);
 }
 
 async function handleAdminRequest(request, env, pathname) {
@@ -133,6 +158,18 @@ async function handleAdminRequest(request, env, pathname) {
       article = await getArticle(env, articleId);
     }
     return html(renderAdminEditor(env, article));
+  }
+
+  // 评论管理页面
+  if (pathname.startsWith('/admin/comments')) {
+    const url = new URL(request.url);
+    const articleId = url.searchParams.get('articleId');
+    if (!articleId) {
+      return html(renderAdminComments(env, null, []));
+    }
+    const article = await getArticle(env, articleId);
+    const comments = await getComments(env, articleId);
+    return html(renderAdminComments(env, article, comments));
   }
 
   return new Response('Not Found', { status: 404 });
@@ -213,11 +250,58 @@ async function getComments(env, articleId) {
 // 工具函数
 // ===========================================================================
 
-function html(content) {
+function html(content, status = 200) {
   return new Response(content, {
+    status,
     headers: {
       'Content-Type': 'text/html;charset=UTF-8',
       'Cache-Control': 'public, max-age=60',
+    },
+  });
+}
+
+// ===========================================================================
+// RSS Feed
+// ===========================================================================
+
+async function handleRssFeed(request, env, locale) {
+  const articles = await getPublishedArticles(env, locale);
+  const siteName = env.SITE_NAME || '我的博客';
+  const origin = new URL(request.url).origin;
+  const prefix = locale === 'zh-TW' ? '/tw' : '/cn';
+
+  let items = '';
+  for (const article of articles.slice(0, 20)) {
+    const date = article.createdAt ? new Date(article.createdAt).toUTCString() : '';
+    const url = `${origin}${prefix}/articles/${article.id}`;
+    const summary = article.summary || (article.content || '').substring(0, 200);
+    items += `
+    <item>
+      <title><![CDATA[${article.title}]]></title>
+      <link>${url}</link>
+      <guid isPermaLink="true">${url}</guid>
+      <description><![CDATA[${summary}]]></description>
+      <pubDate>${date}</pubDate>
+    </item>`;
+  }
+
+  const rss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>${siteName}</title>
+  <link>${origin}${prefix}/</link>
+  <description>${siteName} - ${locale === 'zh-TW' ? '部落格文章' : '博客文章'}</description>
+  <language>${locale}</language>
+  <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+  <atom:link href="${origin}${prefix}/rss.xml" rel="self" type="application/rss+xml"/>
+  ${items}
+</channel>
+</rss>`;
+
+  return new Response(rss, {
+    headers: {
+      'Content-Type': 'application/rss+xml;charset=UTF-8',
+      'Cache-Control': 'public, max-age=3600',
     },
   });
 }
