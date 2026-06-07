@@ -321,7 +321,7 @@ function fillBaseTemplate(params) {
 /**
  * 渲染首页
  */
-export function renderHome(locale, env, articles) {
+export function renderHome(locale, env, articles, page = 1, totalPages = 1) {
   const siteName = env.SITE_NAME || tt(locale, 'siteName');
   const prefix = getPrefix(locale);
 
@@ -447,7 +447,7 @@ export function renderArticle(locale, env, article, comments) {
 /**
  * 渲染文章列表页
  */
-export function renderArticleList(locale, env, articles) {
+export function renderArticleList(locale, env, articles, page = 1, totalPages = 1, searchQuery = '') {
   const siteName = env.SITE_NAME || tt(locale, 'siteName');
   const prefix = getPrefix(locale);
 
