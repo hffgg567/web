@@ -766,16 +766,17 @@ export function renderAdminComments(env, article, comments) {
   } else if (!comments || comments.length === 0) {
     commentsHtml = '<p style="text-align:center;color:var(--text-tertiary);padding:40px;">该文章暂无评论</p>';
   } else {
-    commentsHtml = comments.map(c => {
-      const d = c.createdAt ? new Date(c.createdAt).toLocaleDateString('zh-CN') : '';
+    commentsHtml = comments.map(function(c) {
+      var d = c.createdAt ? new Date(c.createdAt).toLocaleDateString('zh-CN') : '';
+      var avatar = c.avatarUrl || 'https://github.githubassets.com/images/gravatars/gravatar-user-420.png';
       return '<li class="comment-item" style="list-style:none;padding:12px 0;border-bottom:1px solid var(--border-color);">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;">'
         + '<div style="display:flex;align-items:center;gap:10px;">'
-        + '<img src="' + (c.avatarUrl || 'https://github.githubassets.com/images/gravatars/gravatar-user-420.png') + '" alt="" style="width:32px;height:32px;border-radius:50%;">'
+        + '<img src="' + avatar + '" alt="" style="width:32px;height:32px;border-radius:50%;">'
         + '<div><strong style="color:var(--text-primary);">' + escapeHtml(c.username) + '</strong>'
         + '<span style="display:block;font-size:0.8rem;color:var(--text-tertiary);">' + d + '</span></div>'
         + '</div>'
-        + '<button onclick="deleteComment('' + c.articleId + '','' + c.id + '')" class="btn btn--sm btn--danger">删除</button>'
+        + '<button data-delete-comment="' + c.id + '" data-delete-article="' + c.articleId + '" class="btn btn--sm btn--danger comment-delete-btn">删除</button>'
         + '</div>'
         + '<p style="margin:8px 0 0 42px;color:var(--text-secondary);">' + escapeHtml(c.content) + '</p>'
         + '</li>';
@@ -783,36 +784,9 @@ export function renderAdminComments(env, article, comments) {
     commentsHtml = '<ul style="padding:0;margin:0;">' + commentsHtml + '</ul>';
   }
 
-  const title = article ? '评论管理：' + escapeHtml(article.title) : '评论管理';
+  var title = article ? '评论管理：' + escapeHtml(article.title) : '评论管理';
 
-  return '<!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>' + title + ' - ' + siteName + '</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>' + CSS + '</style>
-</head>
-<body>
-  <nav class="navbar">
-    <div class="navbar__inner">
-      <a href="/admin/" class="navbar__logo">' + siteName + ' - 管理后台</a>
-      <div class="navbar__actions">
-        <button class="theme-toggle" onclick="toggleTheme()"><span class="icon-sun">☀️</span><span class="icon-moon">🌙</span></button>
-      </div>
-    </div>
-  </nav>
-  <div style="max-width:800px;margin:80px auto 0;padding:20px;">
-    <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:20px;">' + title + '</h1>
-    <a href="/admin/" style="display:inline-block;margin-bottom:20px;color:var(--accent-primary);">← 返回文章管理</a>
-    ' + commentsHtml + '
-  </div>
-  <script>' + APP_JS + '</script>
-</body>
-</html>';
+  return '<!DOCTYPE html>\n<html lang="zh-CN" data-theme="light">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>' + title + ' - ' + siteName + '</title>\n  <link rel="preconnect" href="https://fonts.googleapis.com">\n  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet">\n  <style>' + CSS + '</style>\n</head>\n<body>\n  <nav class="navbar">\n    <div class="navbar__inner">\n      <a href="/admin/" class="navbar__logo">' + siteName + ' - 管理后台</a>\n      <div class="navbar__actions">\n        <button class="theme-toggle" onclick="toggleTheme()"><span class="icon-sun">☀️</span><span class="icon-moon">🌙</span></button>\n      </div>\n    </div>\n  </nav>\n  <div style="max-width:800px;margin:80px auto 0;padding:20px;">\n    <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:20px;">' + title + '</h1>\n    <a href="/admin/" style="display:inline-block;margin-bottom:20px;color:var(--accent-primary);">← 返回文章管理</a>\n    ' + commentsHtml + '\n  </div>\n  <script>' + APP_JS + '</script>\n</body>\n</html>';
 }
 
 // ----------
