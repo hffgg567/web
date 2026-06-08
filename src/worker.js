@@ -1,6 +1,7 @@
 /**
  * Cloudflare Worker 主入口文件
  * 处理所有 fetch 请求，进行 URL 路由分发
+ * 内容统一使用 zh-CN，翻译由客户端 translate.js 处理
  */
 
 import { handleApiRequest } from './routes/api.js';
@@ -18,6 +19,8 @@ import {
 } from './templates/pages.js';
 import { verifyAdmin } from './middleware/auth.js';
 
+const LOCALE = 'zh-CN';
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -32,12 +35,20 @@ export default {
     }
 
     try {
+      // ==================== 旧URL重定向 ====================
+      if (pathname.startsWith('/cn/')) {
+        return Response.redirect(url.href.replace('/cn/', '/'), 301);
+      }
+      if (pathname.startsWith('/tw/')) {
+        return Response.redirect(url.href.replace('/tw/', '/'), 301);
+      }
+
       // ==================== API 路由 ====================
       if (pathname.startsWith('/api/')) {
         return await handleApiRequest(request, env, ctx);
       }
 
-      // ==================== GitHub OAuth 发起 ====================
+      // ==================== GitHub OAuth ====================
       if (pathname === '/auth/github' || pathname === '/api/auth/github') {
         return handleGithubAuthRedirect(request, env);
       }
@@ -47,26 +58,12 @@ export default {
         return await handleAdminRequest(request, env, pathname);
       }
 
-      // ==================== 简体中文页面 (/cn/...) ====================
-      if (pathname.startsWith('/cn/')) {
-        return await handlePageRequest(request, env, 'zh-CN', pathname.slice(3));
-      }
+      // ==================== 页面路由 ====================
+      return await handlePageRequest(request, env, pathname);
 
-      // ==================== 繁体中文页面 (/tw/...) ====================
-      if (pathname.startsWith('/tw/')) {
-        return await handlePageRequest(request, env, 'zh-TW', pathname.slice(3));
-      }
-
-      // ==================== 根路径重定向 ====================
-      if (pathname === '/' || pathname === '') {
-        return Response.redirect(new URL('/cn/', request.url).href, 302);
-      }
-
-      // 其他未匹配路由 → 404
-      return html(renderErrorPage('zh-CN', env, 404, ''), 404);
     } catch (err) {
       console.error('Worker error:', err);
-      return html(renderErrorPage('zh-CN', env, 500, err.message), 500);
+      return html(renderErrorPage(LOCALE, env, 500, err.message), 500);
     }
   },
 };
@@ -75,23 +72,23 @@ export default {
 // 页面路由处理
 // ===========================================================================
 
-async function handlePageRequest(request, env, locale, subPath) {
+async function handlePageRequest(request, env, pathname) {
   const url = new URL(request.url);
-  const path = subPath.replace(/^\//, '') || '';
+  const path = pathname.replace(/^\/+/, '') || '';
   const PAGE_SIZE = 9;
 
   if (path === '' || path === '/') {
     const page = Math.max(1, parseInt(url.searchParams.get('page')) || 1);
-    const articles = await getPublishedArticles(env, locale);
+    const articles = await getPublishedArticles(env);
     const totalPages = Math.ceil(articles.length / PAGE_SIZE);
     const paged = articles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-    return html(renderHome(locale, env, paged, page, totalPages));
+    return html(renderHome(env, paged, page, totalPages));
   }
 
   if (path === 'articles' || path === 'articles/') {
     const page = Math.max(1, parseInt(url.searchParams.get('page')) || 1);
     const q = (url.searchParams.get('q') || '').trim();
-    let articles = await getPublishedArticles(env, locale);
+    let articles = await getPublishedArticles(env);
     if (q) {
       const kw = q.toLowerCase();
       articles = articles.filter(a => {
@@ -104,16 +101,16 @@ async function handlePageRequest(request, env, locale, subPath) {
     }
     const totalPages = Math.ceil(articles.length / PAGE_SIZE);
     const paged = articles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-    return html(renderArticleList(locale, env, paged, page, totalPages, q));
+    return html(renderArticleList(env, paged, page, totalPages, q));
   }
 
   if (path === 'about' || path === 'about/') {
-    return html(renderAbout(locale, env));
+    return html(renderAbout(env));
   }
 
   // RSS feed
   if (path === 'rss.xml') {
-    return await handleRssFeed(request, env, locale);
+    return await handleRssFeed(request, env);
   }
 
   const articleMatch = path.match(/^articles\/(.+)$/);
@@ -121,13 +118,13 @@ async function handlePageRequest(request, env, locale, subPath) {
     const articleId = articleMatch[1];
     const article = await getArticle(env, articleId);
     if (!article) {
-      return html(renderErrorPage(locale, env, 404, ''), 404);
+      return html(renderErrorPage(LOCALE, env, 404, ''), 404);
     }
     const comments = await getComments(env, articleId);
-    return html(renderArticle(locale, env, article, comments));
+    return html(renderArticle(env, article, comments));
   }
 
-  return html(renderErrorPage(locale, env, 404, ''), 404);
+  return html(renderErrorPage(LOCALE, env, 404, ''), 404);
 }
 
 async function handleAdminRequest(request, env, pathname) {
@@ -161,7 +158,6 @@ async function handleAdminRequest(request, env, pathname) {
     return html(renderAdminEditor(env, article));
   }
 
-  // 评论管理页面
   if (pathname.startsWith('/admin/comments')) {
     const url = new URL(request.url);
     const articleId = url.searchParams.get('articleId');
@@ -181,10 +177,8 @@ function handleGithubAuthRedirect(request, env) {
   if (!clientId) {
     return new Response('GitHub OAuth not configured', { status: 500 });
   }
-
   const redirectUri = `${new URL(request.url).origin}/api/auth/github/callback`;
   const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user,user:email`;
-
   return Response.redirect(githubAuthUrl, 302);
 }
 
@@ -192,14 +186,13 @@ function handleGithubAuthRedirect(request, env) {
 // KV 数据读取辅助
 // ===========================================================================
 
-async function getPublishedArticles(env, locale) {
+async function getPublishedArticles(env) {
   try {
     const indexData = await env.ARTICLES_KV.get('article_index', { type: 'json' });
     if (!indexData || !Array.isArray(indexData)) return [];
-
     const articles = [];
     for (const item of indexData) {
-      if (item.published && item.locale === locale) {
+      if (item.published) {
         const full = await env.ARTICLES_KV.get(`article:${item.id}`, { type: 'json' });
         if (full) articles.push(full);
       }
@@ -216,7 +209,6 @@ async function getAllArticles(env) {
   try {
     const indexData = await env.ARTICLES_KV.get('article_index', { type: 'json' });
     if (!indexData || !Array.isArray(indexData)) return [];
-
     const articles = [];
     for (const item of indexData) {
       const full = await env.ARTICLES_KV.get(`article:${item.id}`, { type: 'json' });
@@ -248,33 +240,18 @@ async function getComments(env, articleId) {
 }
 
 // ===========================================================================
-// 工具函数
-// ===========================================================================
-
-function html(content, status = 200) {
-  return new Response(content, {
-    status,
-    headers: {
-      'Content-Type': 'text/html;charset=UTF-8',
-      'Cache-Control': 'public, max-age=60',
-    },
-  });
-}
-
-// ===========================================================================
 // RSS Feed
 // ===========================================================================
 
-async function handleRssFeed(request, env, locale) {
-  const articles = await getPublishedArticles(env, locale);
+async function handleRssFeed(request, env) {
+  const articles = await getPublishedArticles(env);
   const siteName = env.SITE_NAME || '我的博客';
   const origin = new URL(request.url).origin;
-  const prefix = locale === 'zh-TW' ? '/tw' : '/cn';
 
   let items = '';
   for (const article of articles.slice(0, 20)) {
     const date = article.createdAt ? new Date(article.createdAt).toUTCString() : '';
-    const url = `${origin}${prefix}/articles/${article.id}`;
+    const url = `${origin}/articles/${article.id}`;
     const summary = article.summary || (article.content || '').substring(0, 200);
     items += `
     <item>
@@ -290,11 +267,11 @@ async function handleRssFeed(request, env, locale) {
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
 <channel>
   <title>${siteName}</title>
-  <link>${origin}${prefix}/</link>
-  <description>${siteName} - ${locale === 'zh-TW' ? '部落格文章' : '博客文章'}</description>
-  <language>${locale}</language>
+  <link>${origin}/</link>
+  <description>${siteName}</description>
+  <language>zh-CN</language>
   <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-  <atom:link href="${origin}${prefix}/rss.xml" rel="self" type="application/rss+xml"/>
+  <atom:link href="${origin}/rss.xml" rel="self" type="application/rss+xml"/>
   ${items}
 </channel>
 </rss>`;
@@ -303,6 +280,20 @@ async function handleRssFeed(request, env, locale) {
     headers: {
       'Content-Type': 'application/rss+xml;charset=UTF-8',
       'Cache-Control': 'public, max-age=3600',
+    },
+  });
+}
+
+// ===========================================================================
+// 工具函数
+// ===========================================================================
+
+function html(content, status = 200) {
+  return new Response(content, {
+    status,
+    headers: {
+      'Content-Type': 'text/html;charset=UTF-8',
+      'Cache-Control': 'public, max-age=60',
     },
   });
 }
