@@ -43,14 +43,14 @@ export default {
         return Response.redirect(url.href.replace('/tw/', '/'), 301);
       }
 
-      // ==================== API 路由 ====================
-      if (pathname.startsWith('/api/')) {
-        return await handleApiRequest(request, env, ctx);
-      }
-
       // ==================== GitHub OAuth ====================
       if (pathname === '/auth/github' || pathname === '/api/auth/github') {
         return handleGithubAuthRedirect(request, env);
+      }
+
+      // ==================== API 路由 ====================
+      if (pathname.startsWith('/api/')) {
+        return await handleApiRequest(request, env, ctx);
       }
 
       // ==================== 管理后台 ====================
