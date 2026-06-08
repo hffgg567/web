@@ -275,7 +275,7 @@ export const APP_JS = `
         var title = document.getElementById('editorTitle').value.trim();
         var content = editorTextarea.value;
         var tags = document.getElementById('editorTags').value.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
-        var locale = document.getElementById('editorLocale').value;
+        var locale = 'zh-CN'; // 单语种，translate.js 处理翻译
         var published = document.getElementById('editorPublished').checked;
         var articleId = saveBtn.getAttribute('data-article-id');
 
