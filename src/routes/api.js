@@ -468,8 +468,9 @@ async function handleGithubOAuthCallback(request, env, headers) {
       expirationTtl: 604800, // 7 天
     });
 
-    // 重定向回评论页面，带上 token
-    const redirectUrl = new URL(request.url).origin + '/cn/?github_token=' + sessionToken;
+    // 重定向回原始页面，带上 token
+    const redirectPath = url.searchParams.get('state') || '/';
+    const redirectUrl = new URL(request.url).origin + redirectPath + '?github_token=' + sessionToken;
     return Response.redirect(redirectUrl, 302);
   } catch (e) {
     console.error('GitHub OAuth callback error:', e);
