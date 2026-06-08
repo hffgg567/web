@@ -35,39 +35,39 @@ export const APP_JS = `
   /* ----------------------------------------------------------
      Language Switch (translate.js)
      ---------------------------------------------------------- */
-  // 初始化 translate.js
+  function loadTranslateScript(cb) {
+    var s = document.createElement('script');
+    s.src = 'https://res.zvo.cn/translate/translate.js';
+    s.onload = cb;
+    s.onerror = function() { console.warn('translate.js load failed'); };
+    document.head.appendChild(s);
+  }
+
   function initTranslate() {
-    if (typeof translate === 'undefined') return setTimeout(initTranslate, 100);
-
-    // 隐藏 translate.js 自带的选择框
-    translate.selectLanguageTag.show = false;
-
-    // 设置源语种为简体中文
-    translate.language.setLocal('chinese_simplified');
-
-    // 使用免费翻译通道
-    translate.service.use('client.edge');
-
-    // 忽略代码块、pre 标签的翻译
-    translate.ignore.tag.push('code');
-    translate.ignore.tag.push('pre');
-    translate.ignore.class.push('navbar__logo');
-    translate.ignore.class.push('article-detail__title');
-
-    // 翻译完成后回调，更新按钮状态
-    translate.set.run.add(function() {
-      updateLangBtnState();
-    });
-
-    // 恢复保存的语种
-    var savedLang = localStorage.getItem('displayLang');
-    if (savedLang && savedLang !== 'chinese_simplified') {
-      translate.changeLanguage(savedLang);
+    if (typeof translate === 'undefined') {
+      return loadTranslateScript(function() { initTranslate(); });
     }
 
-    // 监听 DOM 变动，自动翻译动态内容
-    translate.listener.start();
-    translate.execute();
+    translate.selectLanguageTag.show = false;
+    translate.language.setLocal('chinese_simplified');
+    translate.service.use('client.edge');
+
+    try {
+      translate.ignore.tag.push('code');
+      translate.ignore.tag.push('pre');
+      translate.ignore.class.push('navbar__logo');
+      translate.ignore.class.push('article-detail__title');
+    } catch(e) {}
+
+    translate.set.run.add(function() { updateLangBtnState(); });
+
+    var savedLang = localStorage.getItem('displayLang');
+    if (savedLang && savedLang !== 'chinese_simplified') {
+      try { translate.changeLanguage(savedLang); } catch(e) {}
+    }
+
+    try { translate.listener.start(); } catch(e) {}
+    try { translate.execute(); } catch(e) {}
   }
 
   function updateLangBtnState() {
