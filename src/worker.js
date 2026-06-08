@@ -177,8 +177,12 @@ function handleGithubAuthRedirect(request, env) {
   if (!clientId) {
     return new Response('GitHub OAuth not configured', { status: 500 });
   }
-  const redirectUri = `${new URL(request.url).origin}/api/auth/github/callback`;
-  const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user,user:email`;
+  const url = new URL(request.url);
+  const origin = url.origin;
+  const referer = request.headers.get('Referer') || '';
+  const state = encodeURIComponent(new URL(referer).pathname || '/');
+  const redirectUri = `${origin}/api/auth/github/callback`;
+  const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user,user:email&state=${state}`;
   return Response.redirect(githubAuthUrl, 302);
 }
 
