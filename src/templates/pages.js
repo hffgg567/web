@@ -186,8 +186,7 @@ function fillBaseTemplate(params) {
   <footer class="footer">
     <p>&copy; ${new Date().getFullYear()} ${siteName}. All rights reserved.</p>
   </footer>
-  <!-- translate.js -->
-  <script src="https://res.zvo.cn/translate/translate.js"></script>
+  <!-- translate.js loaded dynamically by APP_JS -->
   <script>${APP_JS}</script>
 </body>
 </html>`;
