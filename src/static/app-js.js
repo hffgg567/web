@@ -33,17 +33,65 @@ export const APP_JS = `
   };
 
   /* ----------------------------------------------------------
-     Language Switch
+     Language Switch (translate.js)
      ---------------------------------------------------------- */
-  window.switchLang = function (lang) {
-    var path = window.location.pathname;
-    var newPath = path.replace(/^\\/(cn|tw)/, '');
-    if (newPath === '' || newPath === '/') newPath = '/';
-    if (lang !== 'cn') {
-      newPath = '/' + lang + newPath;
+  // 初始化 translate.js
+  function initTranslate() {
+    if (typeof translate === 'undefined') return setTimeout(initTranslate, 100);
+
+    // 隐藏 translate.js 自带的选择框
+    translate.selectLanguageTag.show = false;
+
+    // 设置源语种为简体中文
+    translate.language.setLocal('chinese_simplified');
+
+    // 使用免费翻译通道
+    translate.service.use('client.edge');
+
+    // 忽略代码块、pre 标签的翻译
+    translate.ignore.tag.push('code');
+    translate.ignore.tag.push('pre');
+    translate.ignore.class.push('navbar__logo');
+    translate.ignore.class.push('article-detail__title');
+
+    // 翻译完成后回调，更新按钮状态
+    translate.set.run.add(function() {
+      updateLangBtnState();
+    });
+
+    // 恢复保存的语种
+    var savedLang = localStorage.getItem('displayLang');
+    if (savedLang && savedLang !== 'chinese_simplified') {
+      translate.changeLanguage(savedLang);
     }
-    window.location.href = newPath;
+
+    // 监听 DOM 变动，自动翻译动态内容
+    translate.listener.start();
+    translate.execute();
+  }
+
+  function updateLangBtnState() {
+    var currentLang = translate.language.getCurrent();
+    var btnCN = document.getElementById('langBtnCN');
+    var btnTW = document.getElementById('langBtnTW');
+    if (btnCN) {
+      btnCN.className = 'lang-switch__btn' + (currentLang === 'chinese_simplified' ? ' lang-switch__btn--active' : '');
+    }
+    if (btnTW) {
+      btnTW.className = 'lang-switch__btn' + (currentLang === 'chinese_traditional' ? ' lang-switch__btn--active' : '');
+    }
+  }
+
+  window.switchLang = function (lang) {
+    localStorage.setItem('displayLang', lang);
+    if (typeof translate !== 'undefined' && translate.changeLanguage) {
+      translate.changeLanguage(lang);
+      updateLangBtnState();
+    }
   };
+
+  // 启动翻译
+  initTranslate();
 
   /* ----------------------------------------------------------
      Mobile Navigation Menu
